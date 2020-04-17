@@ -184,9 +184,10 @@ func WithBufferedChannelSize(size int) func(*ClientFactory) {
 // NewClient returns a new client using the provided connection and applying supplied options.
 func (f *ClientFactory) NewClient(conn *websocket.Conn) WSClient {
 	c := &Client{
-		hub:  f.hub,
-		conn: conn,
-		send: make(chan []byte, f.bufferedChannelSize),
+		hub:           f.hub,
+		conn:          conn,
+		send:          make(chan []byte, f.bufferedChannelSize),
+		sendCloseOnce: &sync.Once{},
 	}
 	return c
 }
