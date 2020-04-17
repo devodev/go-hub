@@ -58,7 +58,7 @@ drwxrwxrwx 1 root root 4096 Apr 17 15:25 .git/
 
 Start deving
 ```
-$ go run ./main.go
+$ go run .
 hello world!
 ```
 
