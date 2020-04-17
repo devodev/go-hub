@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
-	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,9 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	// default send channel size
+	defaultBufferedChannelSize = 256
 )
 
 var (
@@ -33,6 +37,14 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// WSClient .
+type WSClient interface {
+	ReadHandler()
+	WriteHandler()
+	Send([]byte) error
+	CloseSend()
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
@@ -42,16 +54,19 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Make sure we close the cahnnel only once.
+	sendCloseOnce *sync.Once
 }
 
-// readPump pumps messages from the websocket connection to the hub.
+// ReadHandler pumps messages from the websocket connection to the hub.
 //
-// The application runs readPump in a per-connection goroutine. The application
+// The application runs ReadHandler in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *Client) readPump() {
+func (c *Client) ReadHandler() {
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.Unregister(c)
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -66,16 +81,16 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+		c.hub.Broadcast(message)
 	}
 }
 
-// writePump pumps messages from the hub to the websocket connection.
+// WriteHandler pumps messages from the hub to the websocket connection.
 //
-// A goroutine running writePump is started for each connection. The
+// A goroutine running WriteHandler is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
-func (c *Client) writePump() {
+func (c *Client) WriteHandler() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -116,18 +131,62 @@ func (c *Client) writePump() {
 	}
 }
 
-// serveWs handles websocket requests from the peer.
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
+// Send sends a message on the send channel, and does nothing
+// if channel is closed or busy.
+func (c *Client) Send(message []byte) error {
+	select {
+	case c.send <- message:
+	default:
+		return fmt.Errorf("channel closed")
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
-	client.hub.register <- client
+	return nil
+}
 
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
-	go client.writePump()
-	go client.readPump()
+// CloseSend closes the client send channel.
+func (c *Client) CloseSend() {
+	c.sendCloseOnce.Do(func() {
+		close(c.send)
+	})
+}
+
+// ClientGenerator provides a factory for generating clients.
+type ClientGenerator interface {
+	NewClient(conn *websocket.Conn) WSClient
+}
+
+// ClientFactory returns a factory for creating clients
+// that inherits the provided hub.
+type ClientFactory struct {
+	hub                 *Hub
+	bufferedChannelSize int
+}
+
+// NewClientFactory returns a factory that generates Clients.
+func NewClientFactory(h *Hub, options ...ClientFactoryOption) *ClientFactory {
+	factory := &ClientFactory{hub: h, bufferedChannelSize: defaultBufferedChannelSize}
+	for _, opt := range options {
+		opt(factory)
+	}
+	return factory
+}
+
+// ClientFactoryOption is a functional option representation
+// for ClientFactory.
+type ClientFactoryOption func(*ClientFactory)
+
+// WithBufferedChannelSize allows updating the bufferedChannleSize attribute.
+func WithBufferedChannelSize(size int) func(*ClientFactory) {
+	return func(c *ClientFactory) {
+		c.bufferedChannelSize = size
+	}
+}
+
+// NewClient returns a new client using the provided connection and applying supplied options.
+func (f *ClientFactory) NewClient(conn *websocket.Conn) WSClient {
+	c := &Client{
+		hub:  f.hub,
+		conn: conn,
+		send: make(chan []byte, f.bufferedChannelSize),
+	}
+	return c
 }
