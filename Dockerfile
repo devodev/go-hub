@@ -26,3 +26,5 @@ ENV GOPATH /srv
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 WORKDIR /srv/src/github.com/devodev/go-hub
+
+EXPOSE 8080

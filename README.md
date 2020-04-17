@@ -34,32 +34,25 @@ $ cd ./go-hub
 $ docker build --tag=go-hub .
 ```
 
-Run a container using the previously built image while mounting the CWD
+Run a container using the previously built image while mounting the CWD and exposing port 8080
 ```
 $ docker run \
     --rm \
     --volume="$(pwd -W):/srv/src/github.com/devodev/go-hub" \
     --tty \
     --interactive \
+    -p 8080:8080 \
     go-hub
-$ root@03e67598a37f:/srv/src/github.com/devodev/go-hub# ll
-total 4
-drwxrwxrwx 1 root root 4096 Apr 17 16:31 ./
-drwxr-xr-x 1 root root 4096 Apr 17 16:36 ../
--rwxr-xr-x 1 root root  184 Apr 17 15:21 .editorconfig*
-drwxrwxrwx 1 root root 4096 Apr 17 15:25 .git/
--rwxr-xr-x 1 root root  301 Apr 17 15:21 .gitignore*
--rwxr-xr-x 1 root root  734 Apr 17 16:32 Dockerfile*
--rwxr-xr-x 1 root root 1094 Apr 17 15:14 LICENSE.txt*
--rwxr-xr-x 1 root root 2023 Apr 17 16:41 README.md*
--rwxr-xr-x 1 root root   23 Apr 17 15:24 go.mod*
--rwxr-xr-x 1 root root   76 Apr 17 16:07 main.go*
+$ root@03e67598a37f:/srv/src/github.com/devodev/go-hub#
 ```
 
 Start deving
 ```
 $ go run .
-hello world!
+go: downloading github.com/gorilla/websocket v1.4.2
+go: extracting github.com/gorilla/websocket v1.4.2
+go: finding github.com/gorilla/websocket v1.4.2
+2020/04/17 18:10:34 ListenAndServe: ":8080"
 ```
 
 ## Contributing
