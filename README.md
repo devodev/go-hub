@@ -11,6 +11,7 @@
 
 - [Overview](#overview)
 - [Installation](#installation)
+- [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -20,6 +21,45 @@ Currently, **`go-hub` requires Go version 1.13 or greater**.
 ## Installation
 ```
 go get github.com/devodev/go-hub
+```
+
+## Development
+You can use the provided `Dockerfile` to build an image that will provide a clean environment for development purposes.</br>
+Instructions that follow assumes you are running `Windows`, have `Docker Desktop` installed and its daemon is running.
+
+Clone this repository and build the image
+```
+$ git clone https://github.com/devodev/go-hub
+$ cd ./go-hub
+$ docker build --tag=go-hub .
+```
+
+Run a container using the previously built image while mounting the CWD
+```
+$ docker run \
+    --rm \
+    --volume="$(pwd -W):/srv/src/github.com/devodev/go-hub" \
+    --tty \
+    --interactive \
+    go-hub
+$ root@03e67598a37f:/srv/src/github.com/devodev/go-hub# ll
+total 4
+drwxrwxrwx 1 root root 4096 Apr 17 16:31 ./
+drwxr-xr-x 1 root root 4096 Apr 17 16:36 ../
+-rwxr-xr-x 1 root root  184 Apr 17 15:21 .editorconfig*
+drwxrwxrwx 1 root root 4096 Apr 17 15:25 .git/
+-rwxr-xr-x 1 root root  301 Apr 17 15:21 .gitignore*
+-rwxr-xr-x 1 root root  734 Apr 17 16:32 Dockerfile*
+-rwxr-xr-x 1 root root 1094 Apr 17 15:14 LICENSE.txt*
+-rwxr-xr-x 1 root root 2023 Apr 17 16:41 README.md*
+-rwxr-xr-x 1 root root   23 Apr 17 15:24 go.mod*
+-rwxr-xr-x 1 root root   76 Apr 17 16:07 main.go*
+```
+
+Start deving
+```
+$ go run ./main.go
+hello world!
 ```
 
 ## Contributing
